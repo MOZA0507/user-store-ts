@@ -1,14 +1,17 @@
-import { JwtAdapter, bcryptAdapter } from "../../config";
+import { JwtAdapter, bcryptAdapter, envs } from "../../config";
 import { UserModel } from "../../data";
 import { CustomError, LoginUserDto, RegisterUserDto } from "../../domain";
 import { UserEntity } from "../../domain/entities/user.entitiy";
+import { EmailService } from "./email.service";
 
 
 
 export class AuthService {
 
   //DI
-  constructor(){}
+  constructor(
+    private readonly emailService: EmailService
+  ){}
 
   public async registerUser(registerUserDto: RegisterUserDto) {
     const existUser = await UserModel.findOne({email: registerUserDto.email});
@@ -22,11 +25,17 @@ export class AuthService {
       user.password = bcryptAdapter.hash(registerUserDto.password);
       await user.save();
 
-      const {password, ...rest} = UserEntity.fromObject(user);
+      //mandar email
+      await this.sendEmailValidationLink(user.email);
 
+      const {password, ...rest} = UserEntity.fromObject(user);
+      const token = await JwtAdapter.generateToken({id: user.id});
+
+      if (!token) throw CustomError.internalServer('Error creating token');
+      
       return {
         user: rest, 
-        token:'ABC'};
+        token:token};
     } catch (err) {
       throw CustomError.internalServer(`${err}`);
     }
@@ -42,7 +51,7 @@ export class AuthService {
       if (!passwordCompare) throw CustomError.unauthorized('Password or email dont match');
 
       const {password, ...userEntity} = UserEntity.fromObject(existUser);
-      const token = await JwtAdapter.generateToken({id: existUser.id});
+      const token = await JwtAdapter.generateToken({id: existUser.id, email: existUser.email});
 
       if (!token) throw CustomError.internalServer('Error creating token');
       return {
@@ -53,4 +62,27 @@ export class AuthService {
       throw CustomError.internalServer(`${err}`);
     }
   }
+
+  private sendEmailValidationLink = async(email: string) => {
+    const token = JwtAdapter.generateToken({email});
+    if (!token) throw CustomError.internalServer('Error creating token');
+
+    const link = `${envs.WEB_SERVICE_URL}/auth/validate-email`;
+    const html = `
+      <h1>Validate your email</h1>
+      <p>Click on the following link to valudate your email</p>
+      <a href="${link}">Validate your email ${email}</a>
+    `;
+
+    const options = {
+      to: email,
+      subject: 'Validate your email',
+      htmlBody: html,
+    };
+
+    const isSent = await this.emailService.sendEmail(options);
+    if (!isSent) throw CustomError.internalServer('Error sending email');
+    
+    return true;
+  };  
 }
