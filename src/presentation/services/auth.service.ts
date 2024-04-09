@@ -64,10 +64,10 @@ export class AuthService {
   }
 
   private sendEmailValidationLink = async(email: string) => {
-    const token = JwtAdapter.generateToken({email});
+    const token = await JwtAdapter.generateToken({email});
     if (!token) throw CustomError.internalServer('Error creating token');
 
-    const link = `${envs.WEB_SERVICE_URL}/auth/validate-email`;
+    const link = `${envs.WEB_SERVICE_URL}/auth/validate-email/${token}`;
     const html = `
       <h1>Validate your email</h1>
       <p>Click on the following link to valudate your email</p>
@@ -85,4 +85,20 @@ export class AuthService {
     
     return true;
   };  
+
+  public validateEmail = async (token: string) => {
+    const payload = await JwtAdapter.validateToken(token);
+    if (!payload) throw CustomError.unauthorized('Invalid token');
+
+    const {email} = payload as {email: string};
+    if (!email) throw CustomError.internalServer('Email not in token');
+
+    const user = await UserModel.findOne({email});
+    if (!user) throw CustomError.internalServer('Email not exist');
+
+    user.emailValidated = true;
+    await user.save();
+
+    return true;
+  };
 }
