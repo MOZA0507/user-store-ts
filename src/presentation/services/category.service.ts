@@ -1,5 +1,5 @@
 import { CategoryModel } from "../../data";
-import { CreateCategoryDto, CustomError, UserEntity } from "../../domain";
+import { CreateCategoryDto, CustomError, PaginationDto, UserEntity } from "../../domain";
 
 
 
@@ -30,14 +30,32 @@ export class CategoryService {
     }
   };
 
-  async getAllCategories(){
+  async getAllCategories(paginationDto: PaginationDto){
+    const {page, limit} = paginationDto;
     try {
-      const categories = await CategoryModel.find();
-      return categories.map((category) =>({
-        id: category._id,
-        name: category.name,
-        available: category.available,
-      }));
+      // const total = await CategoryModel.countDocuments();
+      // const categories = await CategoryModel.find()
+      //   .skip((page-1) * limit)
+      //   .limit(limit);
+
+      const [total, categories] = await Promise.all([
+        CategoryModel.countDocuments(),
+        CategoryModel.find()
+          .skip((page-1) * limit)
+          .limit(limit),
+      ]);
+      return {
+        page: page,
+        limit: limit,
+        total: total,
+        next: `/api/categories/?page=${page + 1}&limit=${limit}`,
+        prev: ((page -1) > 0) ? `/api/categories/?page=${page -1}&limit=${limit}` : null,
+        categories: categories.map(category =>({
+          id: category._id,
+          name: category.name,
+          available: category.available,
+        })),
+      }
     } catch (error){
       throw CustomError.internalServer('Internal Server Error');
     }
