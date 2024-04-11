@@ -20,5 +20,9 @@ export class MongoDatabase {
       console.log('Mongo database connection error');
       throw err;
     }
+  };
+
+  static async disconnect() {
+    await mongoose.disconnect();
   }
 }
