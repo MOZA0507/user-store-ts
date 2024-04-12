@@ -12,4 +12,6 @@ Cada paso de su configuración ya se ha realizado previamente en el curso, por l
 3. En caso de necesitar base de datos, configurar el docker-compose.yml y ejecutar `docker-compose up -d` para levantar los servicios deseados.
 4. Añadir informacion a la base de datos de prueba, ejecutando `npm run seed` solo en desarrollo
 5. Ejecutar `npm run dev` para levantar el proyecto en modo desarrollo
+6. En caso de que marque error al correr el poryecto crear una carpeta `uploads`
+para el guardado de las imagenes
 
